@@ -12,6 +12,7 @@ const display = document.getElementById('surahTextDisplay');
 let currentAyahIndex = 0;
 let recognition;
 let isReciting = false;
+let loadedAyahs = [];
 
 // تعبئة قوائم السور
 function updateSelect(list) {
@@ -86,7 +87,7 @@ function startPress() {
     pressTimer = setTimeout(() => {
         document.getElementById('listeningSection').classList.add('hidden');
         document.getElementById('recitationSection').classList.remove('hidden');
-    }, 1000); // تم تعديلها إلى ثانية واحدة (1000 مللي ثانية)
+    }, 1000); // ثانية واحدة
 }
 
 function cancelPress() {
@@ -111,10 +112,10 @@ async function startRecitationMode() {
     try {
         const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNum}`);
         const data = await res.json();
-        const ayahs = data.data.ayahs;
+        loadedAyahs = data.data.ayahs;
         
         displayDiv.innerHTML = "";
-        ayahs.forEach((ayah, index) => {
+        loadedAyahs.forEach((ayah, index) => {
             let span = document.createElement('span');
             span.className = 'ayah-block';
             span.id = `ayah-${index}`;
@@ -125,17 +126,16 @@ async function startRecitationMode() {
         currentAyahIndex = 0;
         document.getElementById(`ayah-${currentAyahIndex}`).classList.add('ayah-active');
         
-        // إيقاف أي تعرف صوتي قديم قبل بدء الجلسة الجديدة
         if (recognition) {
             recognition.stop();
         }
-        startSpeechRecognition(ayahs);
+        startSpeechRecognition();
     } catch (err) {
         displayDiv.innerHTML = "فشل في جلب السورة، يرجى التحقق من اتصال الانترنت.";
     }
 }
 
-function startSpeechRecognition(ayahs) {
+function startSpeechRecognition() {
     window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!window.SpeechRecognition) {
         alert("ميزة التسميع الصوتي غير مدعومة بالكامل في متصفحك الحالي.");
@@ -145,27 +145,31 @@ function startSpeechRecognition(ayahs) {
     recognition = new SpeechRecognition();
     recognition.lang = 'ar-AE'; 
     recognition.continuous = true;
-    recognition.interimResults = false; // تم إلغاء النتائج المؤقتة لمنع القفز السريع والتأكد من جودة النطق قبل الانتقال
+    recognition.interimResults = true; // تفعيل لسرعة التقاط الكلمات الفردية أثناء القراءة
 
     recognition.onresult = (event) => {
-        const speechText = event.results[event.results.length - 1][0].transcript.trim();
-        
-        // تنظيف النصوص من التشكيل والرموز لتسهيل المطابقة الدقيقة
-        const targetAyah = ayahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
-        const cleanSpeech = speechText.replace(/[^\u0621-\u064A\s]/g, '');
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            interimTranscript += event.results[i][0].transcript;
+        }
 
-        // تقسيم الكلمات للتحقق من أن المستخدم نطق جزءاً معتبراً وصحيحاً من الآية المستهدفة
-        const targetWords = targetAyah.split(/\s+/);
+        if (!loadedAyahs[currentAyahIndex]) return;
+
+        // تنظيف الكلمات المقروءة والآية المستهدفة لتسهيل وتحسين المطابقة العادلة
+        const targetAyah = loadedAyahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
+        const cleanSpeech = interimTranscript.replace(/[^\u0621-\u064A\s]/g, '');
+
+        const targetWords = targetAyah.split(/\s+/).filter(w => w.length > 1);
         let matchCount = 0;
         
         targetWords.forEach(word => {
-            if (cleanSpeech.includes(word) && word.length > 1) {
+            if (cleanSpeech.includes(word)) {
                 matchCount++;
             }
         });
 
-        // إذا نطق أكثر من 40% من كلمات الآية بشكل صحيح، ينتقل للآية التالية
-        if (matchCount >= Math.ceil(targetWords.length * 0.4)) {
+        // الانتقال للآية التالية إذا تطابق أكثر من 45% من كلمات الآية الحالية بشكل صحيح
+        if (matchCount >= Math.ceil(targetWords.length * 0.45)) {
             const currentAyahElement = document.getElementById(`ayah-${currentAyahIndex}`);
             if (currentAyahElement) {
                 currentAyahElement.classList.remove('ayah-active');
@@ -173,16 +177,25 @@ function startSpeechRecognition(ayahs) {
             
             currentAyahIndex++;
             
-            if (currentAyahIndex < ayahs.length) {
+            if (currentAyahIndex < loadedAyahs.length) {
                 const nextAyah = document.getElementById(`ayah-${currentAyahIndex}`);
                 if (nextAyah) {
                     nextAyah.classList.add('ayah-active');
                     nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
+                // إعادة تشغيل المستمع بتهيئة جديدة لتصفية الكلمات القديمة ومتابعة الآية التالية
+                recognition.stop();
             } else {
-                alert("أحسنت! لقد أكملت السورة بنجاح.");
+                alert("أحسنت بارك الله فيك! لقد أكملت السورة بنجاح.");
                 recognition.stop();
             }
+        }
+    };
+
+    recognition.onend = () => {
+        // إعادة التشغيل تلقائياً إذا انتقل لآية جديدة لضمان استمرارية المايكروفون
+        if (currentAyahIndex < loadedAyahs.length && document.getElementById('listeningSection').classList.contains('hidden')) {
+            recognition.start();
         }
     };
 
