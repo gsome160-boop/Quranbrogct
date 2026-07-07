@@ -70,7 +70,7 @@ function downloadAudio() {
     document.body.removeChild(a);
 }
 
-// منطق الضغط المطول (3 ثوانٍ) لإظهار التلاوة
+// منطق الضغط المطول (ثانية واحدة فقط) لإظهار التلاوة
 const listenTitle = document.getElementById('listenTitle');
 let pressTimer;
 
@@ -86,7 +86,7 @@ function startPress() {
     pressTimer = setTimeout(() => {
         document.getElementById('listeningSection').classList.add('hidden');
         document.getElementById('recitationSection').classList.remove('hidden');
-    }, 3000);
+    }, 1000); // تم تعديلها إلى ثانية واحدة (1000 مللي ثانية)
 }
 
 function cancelPress() {
@@ -94,7 +94,9 @@ function cancelPress() {
 }
 
 function backToMain() {
-    if (recognition) recognition.stop();
+    if (recognition) {
+        recognition.stop();
+    }
     isReciting = false;
     document.getElementById('recitationSection').classList.add('hidden');
     document.getElementById('listeningSection').classList.remove('hidden');
@@ -123,6 +125,10 @@ async function startRecitationMode() {
         currentAyahIndex = 0;
         document.getElementById(`ayah-${currentAyahIndex}`).classList.add('ayah-active');
         
+        // إيقاف أي تعرف صوتي قديم قبل بدء الجلسة الجديدة
+        if (recognition) {
+            recognition.stop();
+        }
         startSpeechRecognition(ayahs);
     } catch (err) {
         displayDiv.innerHTML = "فشل في جلب السورة، يرجى التحقق من اتصال الانترنت.";
@@ -139,27 +145,43 @@ function startSpeechRecognition(ayahs) {
     recognition = new SpeechRecognition();
     recognition.lang = 'ar-AE'; 
     recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.interimResults = false; // تم إلغاء النتائج المؤقتة لمنع القفز السريع والتأكد من جودة النطق قبل الانتقال
 
     recognition.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                const speechText = event.results[i][0].transcript.trim();
-                const targetAyah = ayahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
-                const cleanSpeech = speechText.replace(/[^\u0621-\u064A\s]/g, '');
+        const speechText = event.results[event.results.length - 1][0].transcript.trim();
+        
+        // تنظيف النصوص من التشكيل والرموز لتسهيل المطابقة الدقيقة
+        const targetAyah = ayahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
+        const cleanSpeech = speechText.replace(/[^\u0621-\u064A\s]/g, '');
 
-                if (cleanSpeech.includes(cleanSpeech) || cleanSpeech.length > 2) {
-                    document.getElementById(`ayah-${currentAyahIndex}`).classList.remove('ayah-active');
-                    currentAyahIndex++;
-                    if (currentAyahIndex < ayahs.length) {
-                        const nextAyah = document.getElementById(`ayah-${currentAyahIndex}`);
-                        nextAyah.classList.add('ayah-active');
-                        nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    } else {
-                        alert("أحسنت! لقد أكملت السورة بنجاح.");
-                        recognition.stop();
-                    }
+        // تقسيم الكلمات للتحقق من أن المستخدم نطق جزءاً معتبراً وصحيحاً من الآية المستهدفة
+        const targetWords = targetAyah.split(/\s+/);
+        let matchCount = 0;
+        
+        targetWords.forEach(word => {
+            if (cleanSpeech.includes(word) && word.length > 1) {
+                matchCount++;
+            }
+        });
+
+        // إذا نطق أكثر من 40% من كلمات الآية بشكل صحيح، ينتقل للآية التالية
+        if (matchCount >= Math.ceil(targetWords.length * 0.4)) {
+            const currentAyahElement = document.getElementById(`ayah-${currentAyahIndex}`);
+            if (currentAyahElement) {
+                currentAyahElement.classList.remove('ayah-active');
+            }
+            
+            currentAyahIndex++;
+            
+            if (currentAyahIndex < ayahs.length) {
+                const nextAyah = document.getElementById(`ayah-${currentAyahIndex}`);
+                if (nextAyah) {
+                    nextAyah.classList.add('ayah-active');
+                    nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
+            } else {
+                alert("أحسنت! لقد أكملت السورة بنجاح.");
+                recognition.stop();
             }
         }
     };
