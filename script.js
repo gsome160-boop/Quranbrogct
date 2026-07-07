@@ -1,57 +1,185 @@
-const surahSelect = document.getElementById('surah-select');
-const reciterSelect = document.getElementById('reciter-select');
-const mainAudio = document.getElementById('main-audio');
-const quranContainer = document.getElementById('quran-container');
+const surahList = ["الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة", "الأنعام", "الأعراف", "الأنفال", "التوبة", "يونس", "هود", "يوسف", "الرعد", "إبراهيم", "الحجر", "النحل", "الإسراء", "الكهف", "مريم", "طه", "الأنبياء", "الحج", "المؤمنون", "النور", "الفرقان", "الشعراء", "النمل", "القصص", "العنكبوت", "الروم", "لقمان", "السجدة", "الأحزاب", "سبأ", "فاطر", "يس", "الصافات", "ص", "الزمر", "غافر", "فصلت", "الشورى", "الزخرف", "الدخان", "الجاثية", "الأحقاف", "محمد", "الفتح", "الحجرات", "ق", "الذاريات", "الطور", "النجم", "القمر", "الرحمن", "الواقعة", "الحديد", "المجادلة", "الحشر", "الممتحنة", "الصف", "الجمعة", "المنافقون", "التغابن", "الطلاق", "التحريم", "الملك", "القلم", "الحاقة", "المعارج", "نوح", "الجن", "المزمل", "المدثر", "القيامة", "الإنسان", "المرسلات", "النبأ", "النازعات", "عبس", "التكوير", "الإنفطار", "المطففين", "الإنشقاق", "البروج", "الطارق", "الأعلى", "الغاشية", "الفجر", "البلد", "الشمس", "الليل", "الضحى", "الشرح", "التين", "العلق", "القدر", "البينة", "الزلزلة", "العاديات", "القارعة", "التكاثر", "العصر", "الهمزة", "الفيل", "قريش", "الماعون", "الكوثر", "الكافرون", "النصر", "المسد", "الإخلاص", "الفلق", "الناس"];
 
-// 1. جلب قائمة السور وتعبئتها في القائمة المنسدلة
-fetch('https://api.alquran.cloud/v1/surah')
-    .then(response => response.json())
-    .then(data => {
-        const surahs = data.data;
-        surahs.forEach(surah => {
-            const option = document.createElement('option');
-            option.value = surah.number;
-            option.textContent = `${surah.number}. سورة ${surah.name}`;
-            surahSelect.appendChild(option);
+const audioPlayer = document.getElementById('audioPlayer');
+const playPauseBtn = document.getElementById('playPauseBtn');
+const select = document.getElementById('surahSelect');
+const reciteSurahSelect = document.getElementById('reciteSurahSelect');
+const reciterSelect = document.getElementById('reciterSelect');
+const speedSelect = document.getElementById('speedSelect');
+const searchInput = document.getElementById('searchInput');
+const display = document.getElementById('surahTextDisplay');
+
+let currentAyahIndex = 0;
+let recognition;
+let isReciting = false;
+
+// تعبئة قوائم السور
+function updateSelect(list) {
+    select.innerHTML = '';
+    reciteSurahSelect.innerHTML = '';
+    list.forEach((name) => {
+        let opt = document.createElement("option");
+        let realIndex = surahList.indexOf(name) + 1;
+        opt.value = realIndex.toString().padStart(3, '0');
+        opt.text = name;
+        select.add(opt);
+        
+        let opt2 = opt.cloneNode(true);
+        reciteSurahSelect.add(opt2);
+    });
+}
+updateSelect(surahList);
+
+searchInput.addEventListener('input', () => {
+    const filtered = surahList.filter(s => s.includes(searchInput.value));
+    updateSelect(filtered);
+});
+
+function setAudioSource() {
+    audioPlayer.src = reciterSelect.value + select.value + ".mp3";
+    audioPlayer.playbackRate = parseFloat(speedSelect.value);
+}
+
+speedSelect.addEventListener('change', () => {
+    audioPlayer.playbackRate = parseFloat(speedSelect.value);
+});
+
+function togglePlay() {
+    if (!audioPlayer.src || audioPlayer.src === window.location.href) {
+        setAudioSource();
+    }
+    if (audioPlayer.paused) {
+        audioPlayer.play()
+            .then(() => {
+                playPauseBtn.innerText = "توقف";
+                display.innerText = "أنت تستمع إلى سورة: " + select.options[select.selectedIndex].text;
+            }).catch(err => console.log(err));
+    } else {
+        audioPlayer.pause();
+        playPauseBtn.innerText = "ابدأ";
+    }
+}
+
+function downloadAudio() {
+    const url = reciterSelect.value + select.value + ".mp3";
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${select.options[select.selectedIndex].text}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// منطق الضغط المطول (3 ثوانٍ) لإظهار التلاوة
+const listenTitle = document.getElementById('listenTitle');
+let pressTimer;
+
+if (listenTitle) {
+    listenTitle.addEventListener('mousedown', startPress);
+    listenTitle.addEventListener('touchstart', startPress);
+    listenTitle.addEventListener('mouseup', cancelPress);
+    listenTitle.addEventListener('mouseleave', cancelPress);
+    listenTitle.addEventListener('touchend', cancelPress);
+}
+
+function startPress() {
+    pressTimer = setTimeout(() => {
+        document.getElementById('listeningSection').classList.add('hidden');
+        document.getElementById('recitationSection').classList.remove('hidden');
+    }, 3000);
+}
+
+function cancelPress() {
+    clearTimeout(pressTimer);
+}
+
+function backToMain() {
+    if (recognition) recognition.stop();
+    isReciting = false;
+    document.getElementById('recitationSection').classList.add('hidden');
+    document.getElementById('listeningSection').classList.remove('hidden');
+}
+
+// جلب نص السورة الفعلي للتسميع من API
+async function startRecitationMode() {
+    const surahNum = parseInt(reciteSurahSelect.value);
+    const displayDiv = document.getElementById('recitationDisplay');
+    displayDiv.innerHTML = "جاري تحميل السورة...";
+
+    try {
+        const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNum}`);
+        const data = await res.json();
+        const ayahs = data.data.ayahs;
+        
+        displayDiv.innerHTML = "";
+        ayahs.forEach((ayah, index) => {
+            let span = document.createElement('span');
+            span.className = 'ayah-block';
+            span.id = `ayah-${index}`;
+            span.innerText = ayah.text + ` ﴿${ayah.numberInSurah}﴾ `;
+            displayDiv.appendChild(span);
         });
-    })
-    .catch(error => console.error('خطأ في جلب السور:', error));
 
-// 2. دالة تشغيل الصوت وجلب نصوص الآيات
-function updateAudio() {
-    const surahNumber = surahSelect.value;
-    const reciterUrl = reciterSelect.value;
+        currentAyahIndex = 0;
+        document.getElementById(`ayah-${currentAyahIndex}`).classList.add('ayah-active');
+        
+        startSpeechRecognition(ayahs);
+    } catch (err) {
+        displayDiv.innerHTML = "فشل في جلب السورة، يرجى التحقق من اتصال الانترنت.";
+    }
+}
 
-    if (!surahNumber) {
-        mainAudio.src = '';
-        quranContainer.innerHTML = '';
+function startSpeechRecognition(ayahs) {
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!window.SpeechRecognition) {
+        alert("ميزة التسميع الصوتي غير مدعومة بالكامل في متصفحك الحالي.");
         return;
     }
 
-    // تحويل رقم السورة إلى تنسيق ثلاثي الخانات (مثال: السورة رقم 2 تصبح 002)
-    const formattedSurah = String(surahNumber).padStart(3, '0');
-    
-    // تركيب رابط الصوت المباشر من سيرفر mp3quran
-    const audioUrl = `${reciterUrl}${formattedSurah}.mp3`;
-    
-    mainAudio.src = audioUrl;
-    mainAudio.play().catch(err => console.log("بانتظار تشغيل المستخدم يدوياً"));
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ar-AE'; 
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-    // جلب نص السورة المختار وعرضه بالحركات والترقيم
-    fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`)
-        .then(response => response.json())
-        .then(data => {
-            quranContainer.innerHTML = '';
-            const ayahs = data.data.ayahs;
-            ayahs.forEach(ayah => {
-                const ayahSpan = document.createElement('span');
-                ayahSpan.textContent = ayah.text + ` ﴿${ayah.numberInSurah}﴾ `;
-                quranContainer.appendChild(ayahSpan);
-            });
-        })
-        .catch(error => console.error('خطأ في جلب نص السورة:', error));
+    recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                const speechText = event.results[i][0].transcript.trim();
+                const targetAyah = ayahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
+                const cleanSpeech = speechText.replace(/[^\u0621-\u064A\s]/g, '');
+
+                if (cleanSpeech.includes(cleanSpeech) || cleanSpeech.length > 2) {
+                    document.getElementById(`ayah-${currentAyahIndex}`).classList.remove('ayah-active');
+                    currentAyahIndex++;
+                    if (currentAyahIndex < ayahs.length) {
+                        const nextAyah = document.getElementById(`ayah-${currentAyahIndex}`);
+                        nextAyah.classList.add('ayah-active');
+                        nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        alert("أحسنت! لقد أكملت السورة بنجاح.");
+                        recognition.stop();
+                    }
+                }
+            }
+        }
+    };
+
+    recognition.onerror = (e) => console.log('خطأ في المايكروفون: ', e);
+    recognition.start();
 }
 
-// 3. تحديث الصوت والنصوص تلقائياً عند تغيير السورة أو القارئ
-surahSelect.addEventListener('change', updateAudio);
-reciterSelect.addEventListener('change', updateAudio);
+function increment() { 
+    let c = document.getElementById('count'); 
+    c.innerText = parseInt(c.innerText) + 1; 
+}
+function resetCounter() { 
+    document.getElementById('count').innerText = 0; 
+}
+
+setTimeout(() => {
+    const overlay = document.getElementById('intro-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.style.display = 'none', 1000);
+    }
+}, 3000);
