@@ -71,13 +71,13 @@ function downloadAudio() {
     document.body.removeChild(a);
 }
 
-// منطق الضغط المطول (ثانية واحدة فقط) لإظهار التلاوة
+// منطق الضغط المطول (تم تعديلها لتصبح ثانية واحدة 1000ms بدقة)
 const listenTitle = document.getElementById('listenTitle');
 let pressTimer;
 
 if (listenTitle) {
     listenTitle.addEventListener('mousedown', startPress);
-    listenTitle.addEventListener('touchstart', startPress);
+    listenTitle.addEventListener('touchstart', startPress, {passive: true});
     listenTitle.addEventListener('mouseup', cancelPress);
     listenTitle.addEventListener('mouseleave', cancelPress);
     listenTitle.addEventListener('touchend', cancelPress);
@@ -103,7 +103,7 @@ function backToMain() {
     document.getElementById('listeningSection').classList.remove('hidden');
 }
 
-// جلب نص السورة الفعلي للتسميع من API
+// جلب نص السورة الفعلي للتسميع من الـ API والتحكم في المايك والتظليل الرمادي
 async function startRecitationMode() {
     const surahNum = parseInt(reciteSurahSelect.value);
     const displayDiv = document.getElementById('recitationDisplay');
@@ -145,7 +145,7 @@ function startSpeechRecognition() {
     recognition = new SpeechRecognition();
     recognition.lang = 'ar-AE'; 
     recognition.continuous = true;
-    recognition.interimResults = true; // تفعيل لسرعة التقاط الكلمات الفردية أثناء القراءة
+    recognition.interimResults = true; 
 
     recognition.onresult = (event) => {
         let interimTranscript = '';
@@ -155,7 +155,7 @@ function startSpeechRecognition() {
 
         if (!loadedAyahs[currentAyahIndex]) return;
 
-        // تنظيف الكلمات المقروءة والآية المستهدفة لتسهيل وتحسين المطابقة العادلة
+        // تنظيف التشكيل للمقارنة بدقة وعادلة
         const targetAyah = loadedAyahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
         const cleanSpeech = interimTranscript.replace(/[^\u0621-\u064A\s]/g, '');
 
@@ -168,7 +168,7 @@ function startSpeechRecognition() {
             }
         });
 
-        // الانتقال للآية التالية إذا تطابق أكثر من 45% من كلمات الآية الحالية بشكل صحيح
+        // إذا قرأ المستخدم بشكل صحيح ما نسبته 45% أو أكثر من الكلمات، ينتقل للآية التالية
         if (matchCount >= Math.ceil(targetWords.length * 0.45)) {
             const currentAyahElement = document.getElementById(`ayah-${currentAyahIndex}`);
             if (currentAyahElement) {
@@ -183,8 +183,7 @@ function startSpeechRecognition() {
                     nextAyah.classList.add('ayah-active');
                     nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-                // إعادة تشغيل المستمع بتهيئة جديدة لتصفية الكلمات القديمة ومتابعة الآية التالية
-                recognition.stop();
+                recognition.stop(); // يعاد تهيئته لتصفية ذاكرة النص القديم للآية التالية
             } else {
                 alert("أحسنت بارك الله فيك! لقد أكملت السورة بنجاح.");
                 recognition.stop();
@@ -193,13 +192,13 @@ function startSpeechRecognition() {
     };
 
     recognition.onend = () => {
-        // إعادة التشغيل تلقائياً إذا انتقل لآية جديدة لضمان استمرارية المايكروفون
-        if (currentAyahIndex < loadedAyahs.length && document.getElementById('listeningSection').classList.contains('hidden')) {
+        // التحقق من بقاء المستخدم داخل وضع التسميع لإعادة التشغيل الآمن
+        if (currentAyahIndex < loadedAyahs.length && !document.getElementById('recitationSection').classList.contains('hidden')) {
             recognition.start();
         }
     };
 
-    recognition.onerror = (e) => console.log('خطأ في المايكروفون: ', e);
+    recognition.onerror = (e) => console.log('تعذر تشغيل المايك أو التعرف: ', e);
     recognition.start();
 }
 
