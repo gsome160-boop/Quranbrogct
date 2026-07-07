@@ -14,7 +14,6 @@ let recognition;
 let isReciting = false;
 let loadedAyahs = [];
 
-// تعبئة قوائم السور
 function updateSelect(list) {
     select.innerHTML = '';
     reciteSurahSelect.innerHTML = '';
@@ -71,7 +70,6 @@ function downloadAudio() {
     document.body.removeChild(a);
 }
 
-// منطق الضغط المطول (تم تعديلها لتصبح ثانية واحدة 1000ms بدقة)
 const listenTitle = document.getElementById('listenTitle');
 let pressTimer;
 
@@ -87,7 +85,7 @@ function startPress() {
     pressTimer = setTimeout(() => {
         document.getElementById('listeningSection').classList.add('hidden');
         document.getElementById('recitationSection').classList.remove('hidden');
-    }, 1000); // ثانية واحدة
+    }, 1000);
 }
 
 function cancelPress() {
@@ -103,7 +101,6 @@ function backToMain() {
     document.getElementById('listeningSection').classList.remove('hidden');
 }
 
-// جلب نص السورة الفعلي للتسميع من الـ API والتحكم في المايك والتظليل الرمادي
 async function startRecitationMode() {
     const surahNum = parseInt(reciteSurahSelect.value);
     const displayDiv = document.getElementById('recitationDisplay');
@@ -155,7 +152,6 @@ function startSpeechRecognition() {
 
         if (!loadedAyahs[currentAyahIndex]) return;
 
-        // تنظيف التشكيل للمقارنة بدقة وعادلة
         const targetAyah = loadedAyahs[currentAyahIndex].text.replace(/[^\u0621-\u064A\s]/g, '');
         const cleanSpeech = interimTranscript.replace(/[^\u0621-\u064A\s]/g, '');
 
@@ -168,7 +164,6 @@ function startSpeechRecognition() {
             }
         });
 
-        // إذا قرأ المستخدم بشكل صحيح ما نسبته 45% أو أكثر من الكلمات، ينتقل للآية التالية
         if (matchCount >= Math.ceil(targetWords.length * 0.45)) {
             const currentAyahElement = document.getElementById(`ayah-${currentAyahIndex}`);
             if (currentAyahElement) {
@@ -183,7 +178,7 @@ function startSpeechRecognition() {
                     nextAyah.classList.add('ayah-active');
                     nextAyah.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-                recognition.stop(); // يعاد تهيئته لتصفية ذاكرة النص القديم للآية التالية
+                recognition.stop();
             } else {
                 alert("أحسنت بارك الله فيك! لقد أكملت السورة بنجاح.");
                 recognition.stop();
@@ -192,7 +187,6 @@ function startSpeechRecognition() {
     };
 
     recognition.onend = () => {
-        // التحقق من بقاء المستخدم داخل وضع التسميع لإعادة التشغيل الآمن
         if (currentAyahIndex < loadedAyahs.length && !document.getElementById('recitationSection').classList.contains('hidden')) {
             recognition.start();
         }
