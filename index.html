@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-QEQ7K86K33"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -79,6 +80,7 @@
     <a href="mailto:qurancommunication@gmail.com" class="contact-btn">التواصل مع المبرمج</a>
 </div>
 
+<!-- نافذة المشاركة المنبثقة -->
 <div id="shareModal" class="modal">
     <div class="modal-content">
         <span class="close-modal" onclick="closeShareModal()">&times;</span>
@@ -87,6 +89,7 @@
         <label>السورة المحددة:</label>
         <select id="modalSurahSelect" onchange="loadAyahRange()"></select>
         
+        <!-- تحديد نطاق الآيات من وإلى -->
         <div class="range-container">
             <div class="range-box">
                 <label>من آية:</label>
@@ -98,6 +101,7 @@
             </div>
         </div>
 
+        <!-- الأزرار الثلاثة -->
         <div class="share-types">
             <div class="type-btn" id="typeVoice" onclick="setShareType('voice')">🔊 صوت</div>
             <div class="type-btn" id="typeImage" onclick="setShareType('image')">🖼️ صورة</div>
@@ -120,6 +124,7 @@
 
 <audio id="audioPlayer"></audio>
 
+<!-- عنصر Canvas مخفي لتوليد الصورة الحقيقية برمجياً -->
 <canvas id="shareCanvas" style="display:none;"></canvas>
 
 <script src="script.js"></script>
