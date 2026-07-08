@@ -6,37 +6,37 @@ const searchInput = document.getElementById('searchInput');
 const display = document.getElementById('surahTextDisplay');
 const suggestionsList = document.getElementById('suggestions');
 
-// متغيرات ميزة المشاركة الجديدة
+// ميزات المشاركة الحقيقية
 const shareModal = document.getElementById('shareModal');
-const modalSurahInput = document.getElementById('modalSurahInput');
+const modalSurahSelect = document.getElementById('modalSurahSelect');
+const fromAyah = document.getElementById('fromAyah');
+const toAyah = document.getElementById('toAyah');
 const creditText = document.getElementById('creditText');
 const modalReciterSelect = document.getElementById('modalReciterSelect');
 let selectedShareType = ''; 
+let currentSurahAyahs = [];
 
 const surahList = ["الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة", "الأنعام", "الأعراف", "الأنفال", "التوبة", "يونس", "هود", "يوسف", "الرعد", "إبراهيم", "الحجر", "النحل", "الإسراء", "الكهف", "مريم", "طه", "الأنبياء", "الحج", "المؤمنون", "النور", "الفرقان", "الشعراء", "النمل", "القصص", "العنكبوت", "الروم", "لقمان", "السجدة", "الأحزاب", "سبأ", "فاطر", "يس", "الصافات", "ص", "الزمر", "غافر", "فصلت", "الشورى", "الزخرف", "الدخان", "الجاثية", "الأحقاف", "محمد", "الفتح", "الحجرات", "ق", "الذاريات", "الطور", "النجم", "القمر", "الرحمن", "الواقعة", "الحديد", "المجادلة", "الحشر", "الممتحنة", "الصف", "الجمعة", "المنافقون", "التغابن", "الطلاق", "التحريم", "الملك", "القلم", "الحاقة", "المعارج", "نوح", "الجن", "المزمل", "المدثر", "القيامة", "الإنسان", "المرسلات", "النبأ", "النازعات", "عبس", "التكوير", "الإنفطار", "المطففين", "الإنشقاق", "البروج", "الطارق", "الأعلى", "الغاشية", "الفجر", "البلد", "الشمس", "الليل", "الضحى", "الشرح", "التين", "العلق", "القدر", "البينة", "الزلزلة", "العاديات", "القارعة", "التكاثر", "العصر", "الهمزة", "الفيل", "قريش", "الماعون", "الكوثر", "الكافرون", "النصر", "المسد", "الإخلاص", "الفلق", "الناس"];
-
-if (suggestionsList) {
-    suggestionsList.style.position = 'absolute';
-    suggestionsList.style.backgroundColor = '#ffffff';
-    suggestionsList.style.border = '2px solid #1a5235';
-    suggestionsList.style.borderRadius = '4px';
-    suggestionsList.style.maxHeight = '200px';
-    suggestionsList.style.overflowY = 'auto';
-    suggestionsList.style.zIndex = '99999';
-    suggestionsList.style.width = '100%';
-    suggestionsList.style.padding = '0';
-    suggestionsList.style.margin = '5px 0 0 0';
-    suggestionsList.style.listStyle = 'none';
-    suggestionsList.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.2)';
-    suggestionsList.style.display = 'none';
-}
 
 let allSurahs = []; 
 
 fetch('https://api.alquran.cloud/v1/surah')
     .then(response => response.json())
-    .then(data => { allSurahs = data.data; })
+    .then(data => { 
+        allSurahs = data.data; 
+        initModalSurahs();
+    })
     .catch(error => console.error('خطأ في جلب السور:', error));
+
+function initModalSurahs() {
+    modalSurahSelect.innerHTML = '';
+    surahList.forEach((name, i) => {
+        let opt = document.createElement("option");
+        opt.value = (i + 1).toString();
+        opt.text = name;
+        modalSurahSelect.add(opt);
+    });
+}
 
 function updateSelect(list) {
     surahSelect.innerHTML = '';
@@ -48,28 +48,22 @@ function updateSelect(list) {
         surahSelect.add(opt);
     });
 }
-
 updateSelect(surahList);
 
 function fetchAndDisplaySurahText(surahIndex) {
     const surahNumber = parseInt(surahIndex);
     if (!surahNumber) return;
-
     display.innerText = "جاري تحميل نص السورة والآيات...";
-
     fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/quran-uthmani`)
         .then(response => response.json())
         .then(data => {
             display.innerHTML = '';
             if (surahNumber !== 1 && surahNumber !== 9) {
                 const bismillahDiv = document.createElement('div');
-                bismillahDiv.style.textAlign = 'center';
-                bismillahDiv.style.fontWeight = 'bold';
-                bismillahDiv.style.marginBottom = '10px';
+                bismillahDiv.style.textAlign = 'center'; bismillahDiv.style.fontWeight = 'bold'; bismillahDiv.style.marginBottom = '10px';
                 bismillahDiv.textContent = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
                 display.appendChild(bismillahDiv);
             }
-
             data.data.ayahs.forEach(ayah => {
                 let text = ayah.text;
                 if (surahNumber !== 1 && surahNumber !== 9 && ayah.numberInSurah === 1) {
@@ -79,8 +73,7 @@ function fetchAndDisplaySurahText(surahIndex) {
                 ayahSpan.textContent = text + ` ﴿${ayah.numberInSurah}﴾ `;
                 display.appendChild(ayahSpan);
             });
-        })
-        .catch(() => { display.innerText = 'حدث خطأ أثناء تحميل نص السورة.'; });
+        }).catch(() => { display.innerText = 'حدث خطأ أثناء تحميل نص السورة.'; });
 }
 
 function setAudioSource() {
@@ -96,92 +89,36 @@ function togglePlay() {
     if (!audioPlayer.src || audioPlayer.src === window.location.href) { setAudioSource(); }
     if (audioPlayer.paused) {
         audioPlayer.play().then(() => { playPauseBtn.innerText = "توقف"; }).catch(err => { console.error(err); });
-    } else {
-        audioPlayer.pause(); playPauseBtn.innerText = "بدء";
-    }
+    } else { audioPlayer.pause(); playPauseBtn.innerText = "بدء"; }
 }
 
-function increment() { 
-    let c = document.getElementById('count'); c.innerText = parseInt(c.innerText) + 1; 
-}
-function resetCounter() { document.getElementById('count').innerText = 0; }
+function increment() { let c = document.getElementById('count'); c.innerText = parseInt(c.innerText) + 1; }
+/g, "").replace(/[أإآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "y").replace(/سوره\s+/g, "").replace(/سوره/g, ""); }
 
-function cleanArabicText(text) {
-    if (!text) return "";
-    return text.replace(/[\u064B-\u065F\u0670]/g, "").replace(/[أإآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "y").replace(/سوره\s+/g, "").replace(/سوره/g, "");
-}
-
-searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.trim();
-    suggestionsList.innerHTML = '';
-    if (!query) { suggestionsList.style.display = 'none'; updateSelect(surahList); return; }
-
-    if (!isNaN(query)) {
-        const pageNumber = parseInt(query);
-        if (pageNumber >= 1 && pageNumber <= 604) {
-            suggestionsList.style.display = 'block';
-            const li = document.createElement('li');
-            li.textContent = `📖 الانتقال إلى الصفحة رقم ${pageNumber}`;
-            styleListItem(li);
-            li.addEventListener('click', () => {
-                fetch(`https://api.alquran.cloud/v1/page/${pageNumber}/ar.alafasy`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.data && data.data.ayahs.length > 0) {
-                            const targetNum = data.data.ayahs[0].surah.number;
-                            surahSelect.value = targetNum.toString().padStart(3, '0');
-                            setAudioSource();
-                            searchInput.value = `صفحة ${pageNumber}`;
-                            suggestionsList.style.display = 'none';
-                        }
-                    });
-            });
-            suggestionsList.appendChild(li);
-        }
-        return;
-    }
-
-    const filtered = surahList.filter(s => cleanArabicText(s).includes(cleanArabicText(query)));
-    updateSelect(filtered);
-
-    const cleanQuery = cleanArabicText(query);
-    const matches = allSurahs.filter(surah => cleanArabicText(surah.name).includes(cleanQuery));
-
-    if (matches.length > 0) {
-        suggestionsList.style.display = 'block';
-        matches.forEach(surah => {
-            const li = document.createElement('li');
-            li.textContent = ` 🕌 سورة ${surah.name} (رقم ${surah.number})`;
-            styleListItem(li);
-            li.addEventListener('click', () => {
-                surahSelect.value = surah.number.toString().padStart(3, '0');
-                setAudioSource();
-                searchInput.value = `سورة ${surah.name}`;
-                suggestionsList.style.display = 'none';
-            });
-            suggestionsList.appendChild(li);
-        });
-    } else { suggestionsList.style.display = 'none'; }
-});
-
-function styleListItem(li) {
-    li.style.padding = '10px'; li.style.cursor = 'pointer'; li.style.borderBottom = '1px solid #eeeeee';
-    li.style.backgroundColor = '#ffffff'; li.style.color = '#222222'; li.style.textAlign = 'right';
-    li.addEventListener('mouseenter', () => { li.style.backgroundColor = '#e0f7fa'; });
-    li.addEventListener('mouseleave', () => { li.style.backgroundColor = '#ffffff'; });
-}
-
-document.addEventListener('click', (e) => { if (e.target !== searchInput) suggestionsList.style.display = 'none'; });
-
-// وظائف التحكم بنوافذ المشاركة الجديدة
+// فتح وإعداد نافذة المشاركة
 function openShareModal() {
     shareModal.style.display = 'flex';
-    // ملء اسم السورة الحالية تلقائياً في خانة البحث لتسهيل الأمر على المستخدم
-    modalSurahInput.value = surahSelect.options[surahSelect.selectedIndex].text;
+    modalSurahSelect.value = parseInt(surahSelect.value).toString();
+    modalReciterSelect.value = reciterSelect.value;
+    loadAyahRange();
 }
 
-function closeShareModal() {
-    shareModal.style.display = 'none';
+function closeShareModal() { shareModal.style.display = 'none'; }
+
+function loadAyahRange() {
+    const surahNum = modalSurahSelect.value;
+    fromAyah.innerHTML = ''; toAyah.innerHTML = '';
+    fetch(`https://api.alquran.cloud/v1/surah/${surahNum}/quran-uthmani`)
+        .then(res => res.json())
+        .then(data => {
+            currentSurahAyahs = data.data.ayahs;
+            currentSurahAyahs.forEach((ayah) => {
+                let opt1 = document.createElement('option'); opt1.value = ayah.numberInSurah; opt1.text = ayah.numberInSurah;
+                let opt2 = document.createElement('option'); opt2.value = ayah.numberInSurah; opt2.text = ayah.numberInSurah;
+                fromAyah.add(opt1); toAyah.add(opt2);
+            });
+            toAyah.value = currentSurahAyahs.length;
+        });
 }
 
 function setShareType(type) {
@@ -189,63 +126,111 @@ function setShareType(type) {
     document.getElementById('typeVoice').classList.remove('active');
     document.getElementById('typeImage').classList.remove('active');
     document.getElementById('typeText').classList.remove('active');
-
     if (type === 'voice') document.getElementById('typeVoice').classList.add('active');
     if (type === 'image') document.getElementById('typeImage').classList.add('active');
-    
-    // إذا اختار العميل "كتابة"، يظهر سطر الحقوق فوراً تحتها
     if (type === 'text') {
         document.getElementById('typeText').classList.add('active');
         creditText.style.display = 'block';
-    } else {
-        creditText.style.display = 'none';
-    }
+    } else { creditText.style.display = 'none'; }
 }
 
-// دالة تنفيذ عملية المشاركة إلى التطبيقات الأخرى (تعتمد على ميزة المتصفح الأصلية للتنقل)
-function executeShare() {
-    const surahName = modalSurahInput.value.trim();
-    const reciterName = modalReciterSelect.value;
+// دالة المشاركة الحقيقية الشاملة للملفات والنصوص
+async function executeShare() {
+    if (!selectedShareType) { alert('الرجاء اختيار نوع المشاركة'); return; }
     
-    if (!surahName) {
-        alert('الرجاء كتابة اسم السورة أولاً');
-        return;
-    }
-    if (!selectedShareType) {
-        alert('الرجاء اختيار نوع المشاركة (صوت، صورة، أو كتابة)');
-        return;
-    }
+    const start = parseInt(fromAyah.value) - 1;
+    const end = parseInt(toAyah.value);
+    const selectedTextAyahs = currentSurahAyahs.slice(start, end);
+    const surahName = modalSurahSelect.options[modalSurahSelect.selectedIndex].text;
+    const reciterName = modalReciterSelect.options[modalReciterSelect.selectedIndex].text;
 
-    let shareData = {
-        title: 'مشاركة من تطبيق القرآن الكريم',
-        text: ''
-    };
+    // 1. الكتابة الحقيقية بنص الآيات الفعلي
+    let textToShare = `📖 سورة ${surahName} (الآيات من ${fromAyah.value} إلى ${toAyah.value})\n\n`;
+    selectedTextAyahs.forEach(a => { textToShare += `${a.text} ﴿${a.numberInSurah}﴾ `; });
 
-    // تجهيز النص بناء على نوع الاختيار
     if (selectedShareType === 'text') {
-        shareData.text = `📖 تلاوة من سورة ${surahName}\n🎙️ بصوت الشيخ: ${reciterName}\n\nتم استخدام موقع https://n9.cl/g0h73t`;
-    } else if (selectedShareType === 'voice') {
-        shareData.text = `🔊 استمع إلى سورة ${surahName} بصوت الشيخ ${reciterName} عبر تطبيقنا المتميز.`;
-    } else if (selectedShareType === 'image') {
-        shareData.text = `🖼️ تفقد آيات سورة ${surahName} المكتوبة والمنسقة بصوت القارئ ${reciterName}.`;
-    }
-
-    // فتح واجهة مشاركة النظام للهاتف أو الكمبيوتر لمشاركتها لأي تطبيق خارجي (واتساب، تيليجرام إلخ)
-    if (navigator.share) {
-        navigator.share(shareData)
-            .then(() => closeShareModal())
-            .catch((error) => console.log('خطأ أثناء المشاركة:', error));
-    } else {
-        // حل بديل في حال كان المتصفح لا يدعم خاصية المشاركة المباشرة
-        alert(`نص المشاركة جاهز:\n\n${shareData.text}`);
+        textToShare += `\n\n🎙️ بصوت الشيخ: ${reciterName}\nتم استخدام موقع https://n9.cl/g0h73t`;
+        sendToShareApi({ title: 'مشاركة آيات قرآنية', text: textToShare });
+    } 
+    // 2. الصوت الحقيقي (رابط تشغيل الملف المباشر الكامل)
+    else if (selectedShareType === 'voice') {
+        const audioUrl = modalReciterSelect.value + modalSurahSelect.value.padStart(3, '0') + ".mp3";
+        textToShare = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
+        sendToShareApi({ title: 'مشاركة صوتية', text: textToShare });
+    } 
+    // 3. الصورة الحقيقية (توليد صورة خضراء بداخلها نص الآيات الفعلي)
+    else if (selectedShareType === 'image') {
+        generateAndShareImage(surahName, selectedTextAyahs);
     }
 }
 
+// دالة توليد صورة حقيقية ومشاركتها كملف فوري
+function generateAndShareImage(surahName, ayahs) {
+    const canvas = document.getElementById('shareCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = 600;
+    canvas.height = 800;
+    
+    // خلفية إسلامية خضراء جميلة
+    ctx.fillStyle = '#1a5235';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // إطار ذهبي داخلي
+    ctx.strokeStyle = '#ffb300';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    
+    // عنوان السورة
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`سورة ${surahName}`, canvas.width / 2, 80);
+    
+    // كتابة الآيات الحقيقية داخل الصورة
+    ctx.font = '20px sans-serif';
+    let currentY = 150;
+    let line = '';
+    
+    let combinedText = '';
+    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
+    
+    let words = combinedText.split(' ');
+    for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = ctx.measureText(testLine);
+        if (metrics.width > 500 && n > 0) {
+            ctx.fillText(line, canvas.width / 2, currentY);
+            line = words[n] + ' ';
+            currentY += 40;
+        } else { line = testLine; }
+    }
+    ctx.fillText(line, canvas.width / 2, currentY);
+
+    // تحويل الـ Canvas إلى ملف حقيقي وإرساله
+    canvas.toBlob((blob) => {
+        const file = new File([blob], 'quran_ayah.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+                files: [file],
+                title: 'صورة الآيات الكريم',
+                text: `تفقد آيات من سورة ${surahName}`
+            }).then(() => closeShareModal()).catch(err => console.log(err));
+        } else {
+            alert('متصفحك لا يدعم مشاركة الملفات المباشرة، تم فتح الصورة للحفظ يدوياً.');
+            window.open(canvas.toDataURL());
+        }
+    });
+}
+
+function sendToShareApi(data) {
+    if (navigator.share) {
+        navigator.share(data).then(() => closeShareModal()).catch(err => console.log(err));
+    } else { alert(data.text); }
+}
+
+function resetCounter() { document.getElementById('count').innerText = 0; }
 setTimeout(() => {
     const overlay = document.getElementById('intro-overlay');
-    if(overlay) {
-        overlay.style.opacity = '0';
-        setTimeout(() => { overlay.style.display = 'none'; }, 1000);
-    }
+    if(overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 1000); }
 }, 3000);
-    
