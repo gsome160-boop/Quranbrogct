@@ -6,7 +6,7 @@ const searchInput = document.getElementById('searchInput');
 const display = document.getElementById('surahTextDisplay');
 const suggestionsList = document.getElementById('suggestions');
 
-// ميزات المشاركة الحقيقية
+// ميزات المشاركة
 const shareModal = document.getElementById('shareModal');
 const modalSurahSelect = document.getElementById('modalSurahSelect');
 const fromAyah = document.getElementById('fromAyah');
@@ -93,7 +93,74 @@ function togglePlay() {
 }
 
 function increment() { let c = document.getElementById('count'); c.innerText = parseInt(c.innerText) + 1; }
-/g, "").replace(/[أإآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "y").replace(/سوره\s+/g, "").replace(/سوره/g, ""); }
+function resetCounter() { document.getElementById('count').innerText = 0; }
+
+function cleanArabicText(text) {
+    if (!text) return "";
+    return text.replace(/[\u064B-\u065F\u0670]/g, "").replace(/[أإآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "y").replace(/سوره\s+/g, "").replace(/سوره/g, "");
+}
+
+searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    suggestionsList.innerHTML = '';
+    if (!query) { suggestionsList.style.display = 'none'; updateSelect(surahList); return; }
+
+    if (!isNaN(query)) {
+        const pageNumber = parseInt(query);
+        if (pageNumber >= 1 && pageNumber <= 604) {
+            suggestionsList.style.display = 'block';
+            const li = document.createElement('li');
+            li.textContent = `📖 الانتقال إلى الصفحة رقم ${pageNumber}`;
+            styleListItem(li);
+            li.addEventListener('click', () => {
+                fetch(`https://api.alquran.cloud/v1/page/${pageNumber}/ar.alafasy`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.data && data.data.ayahs.length > 0) {
+                            const targetNum = data.data.ayahs[0].surah.number;
+                            surahSelect.value = targetNum.toString().padStart(3, '0');
+                            setAudioSource();
+                            searchInput.value = `صفحة ${pageNumber}`;
+                            suggestionsList.style.display = 'none';
+                        }
+                    });
+            });
+            suggestionsList.appendChild(li);
+        }
+        return;
+    }
+
+    const filtered = surahList.filter(s => cleanArabicText(s).includes(cleanArabicText(query)));
+    updateSelect(filtered);
+
+    const cleanQuery = cleanArabicText(query);
+    const matches = allSurahs.filter(surah => cleanArabicText(surah.name).includes(cleanQuery));
+
+    if (matches.length > 0) {
+        suggestionsList.style.display = 'block';
+        matches.forEach(surah => {
+            const li = document.createElement('li');
+            li.textContent = ` 🕌 سورة ${surah.name} (رقم ${surah.number})`;
+            styleListItem(li);
+            li.addEventListener('click', () => {
+                surahSelect.value = surah.number.toString().padStart(3, '0');
+                setAudioSource();
+                searchInput.value = `سورة ${surah.name}`;
+                suggestionsList.style.display = 'none';
+            });
+            suggestionsList.appendChild(li);
+        });
+    } else { suggestionsList.style.display = 'none'; }
+});
+
+function styleListItem(li) {
+    li.style.padding = '10px'; li.style.cursor = 'pointer'; li.style.borderBottom = '1px solid #eeeeee';
+    li.style.backgroundColor = '#ffffff'; li.style.color = '#222222'; li.style.textAlign = 'right';
+    li.addEventListener('mouseenter', () => { li.style.backgroundColor = '#e0f7fa'; });
+    li.addEventListener('mouseleave', () => { li.style.backgroundColor = '#ffffff'; });
+}
+
+document.addEventListener('click', (e) => { if (e.target !== searchInput) suggestionsList.style.display = 'none'; });
 
 // فتح وإعداد نافذة المشاركة
 function openShareModal() {
@@ -134,7 +201,6 @@ function setShareType(type) {
     } else { creditText.style.display = 'none'; }
 }
 
-// دالة المشاركة الحقيقية الشاملة للملفات والنصوص
 async function executeShare() {
     if (!selectedShareType) { alert('الرجاء اختيار نوع المشاركة'); return; }
     
@@ -144,7 +210,6 @@ async function executeShare() {
     const surahName = modalSurahSelect.options[modalSurahSelect.selectedIndex].text;
     const reciterName = modalReciterSelect.options[modalReciterSelect.selectedIndex].text;
 
-    // 1. الكتابة الحقيقية بنص الآيات الفعلي
     let textToShare = `📖 سورة ${surahName} (الآيات من ${fromAyah.value} إلى ${toAyah.value})\n\n`;
     selectedTextAyahs.forEach(a => { textToShare += `${a.text} ﴿${a.numberInSurah}﴾ `; });
 
@@ -152,19 +217,16 @@ async function executeShare() {
         textToShare += `\n\n🎙️ بصوت الشيخ: ${reciterName}\nتم استخدام موقع https://n9.cl/g0h73t`;
         sendToShareApi({ title: 'مشاركة آيات قرآنية', text: textToShare });
     } 
-    // 2. الصوت الحقيقي (رابط تشغيل الملف المباشر الكامل)
     else if (selectedShareType === 'voice') {
         const audioUrl = modalReciterSelect.value + modalSurahSelect.value.padStart(3, '0') + ".mp3";
         textToShare = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
         sendToShareApi({ title: 'مشاركة صوتية', text: textToShare });
     } 
-    // 3. الصورة الحقيقية (توليد صورة خضراء بداخلها نص الآيات الفعلي)
     else if (selectedShareType === 'image') {
         generateAndShareImage(surahName, selectedTextAyahs);
     }
 }
 
-// دالة توليد صورة حقيقية ومشاركتها كملف فوري
 function generateAndShareImage(surahName, ayahs) {
     const canvas = document.getElementById('shareCanvas');
     const ctx = canvas.getContext('2d');
@@ -172,22 +234,18 @@ function generateAndShareImage(surahName, ayahs) {
     canvas.width = 600;
     canvas.height = 800;
     
-    // خلفية إسلامية خضراء جميلة
     ctx.fillStyle = '#1a5235';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // إطار ذهبي داخلي
     ctx.strokeStyle = '#ffb300';
     ctx.lineWidth = 6;
     ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
     
-    // عنوان السورة
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 30px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`سورة ${surahName}`, canvas.width / 2, 80);
     
-    // كتابة الآيات الحقيقية داخل الصورة
     ctx.font = '20px sans-serif';
     let currentY = 150;
     let line = '';
@@ -207,7 +265,6 @@ function generateAndShareImage(surahName, ayahs) {
     }
     ctx.fillText(line, canvas.width / 2, currentY);
 
-    // تحويل الـ Canvas إلى ملف حقيقي وإرساله
     canvas.toBlob((blob) => {
         const file = new File([blob], 'quran_ayah.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -229,7 +286,6 @@ function sendToShareApi(data) {
     } else { alert(data.text); }
 }
 
-function resetCounter() { document.getElementById('count').innerText = 0; }
 setTimeout(() => {
     const overlay = document.getElementById('intro-overlay');
     if(overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 1000); }
