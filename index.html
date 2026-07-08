@@ -84,17 +84,17 @@
         <span class="close-modal" onclick="closeShareModal()">&times;</span>
         <h3>مشاركة الآيات</h3>
         
-        <label>السورة المحددة:</label>
-        <select id="modalSurahSelect" onchange="loadAyahRange()"></select>
+        <label>اكتب اسم السورة:</label>
+        <input type="text" id="modalSurahInput" placeholder="مثال: البقرة، الفاتحة...">
         
         <div class="range-container">
             <div class="range-box">
                 <label>من آية:</label>
-                <select id="fromAyah"></select>
+                <input type="number" id="fromAyahInput" value="1" min="1">
             </div>
             <div class="range-box">
                 <label>إلى آية:</label>
-                <select id="toAyah"></select>
+                <input type="number" id="toAyahInput" value="10" min="1">
             </div>
         </div>
 
