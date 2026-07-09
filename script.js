@@ -56,7 +56,6 @@ function cleanArabicText(text) {
     return text.replace(/[\u064B-\u065F\u0670]/g, "").replace(/[أإآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "y");
 }
 
-// دالة تفحص الآيات وتجبرها على التوقف عند عدد آيات السورة الفعلي، وتمنع اختيار نطاق ضخم
 function validateAyahRange() {
     const inputName = modalSurahInput.value.trim();
     const cleanInput = cleanArabicText(inputName);
@@ -71,13 +70,11 @@ function validateAyahRange() {
     if (fromVal > maxAyahs) fromVal = maxAyahs;
     if (toVal < 1) toVal = 1;
     if (toVal > maxAyahs) toVal = maxAyahs;
-    
-    // إجبار التوقف إذا كان "إلى آية" أصغر من "من آية"
     if (fromVal > toVal) fromVal = toVal;
 
-    // حد ذكي: منع اختيار أكثر من 10 آيات للصور والكتابة لتفادي خروج النص
-    if (toVal - fromVal >= 10) {
-        toVal = fromVal + 9;
+    // حد أمان مرن: يمنع اختيار أكثر من 15 آية دفعة واحدة للمحافظة على وضوح الصورة
+    if (toVal - fromVal >= 15) {
+        toVal = fromVal + 14;
     }
 
     fromAyahInput.value = fromVal;
@@ -197,13 +194,6 @@ async function executeShare() {
         .then(data => {
             const fromAyah = parseInt(fromAyahInput.value);
             const toAyah = parseInt(toAyahInput.value);
-            
-            // التحقق النهائي منعاً للمشاكل
-            if (toAyah - fromAyah >= 10) {
-                alert('الحد الأقصى للمشاركة هو 10 آيات فقط للحفاظ على تنسيق المظهر.');
-                return;
-            }
-
             const selectedTextAyahs = data.data.ayahs.slice(fromAyah - 1, toAyah);
 
             let textToShare = `📖 سورة ${surahName} (الآيات من ${fromAyah} إلى ${toAyah})\n\n`;
@@ -218,41 +208,63 @@ async function executeShare() {
         }).catch(() => alert('حدث خطأ، تأكد من اتصال الإنترنت.'));
 }
 
-// دالة توليد الصورة الذكية والمحسنة هندسياً لحساب مقاسات وحجم الخط تلقائياً
+// دالة ذكية تقوم بتجربة أحجام خط مختلفة حتى يتناسب النص تماماً مع طول وعرض الصورة
 function generateAndShareImage(surahName, ayahs) {
     const canvas = document.getElementById('shareCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 600; canvas.height = 800;
     
+    canvas.width = 600; 
+    canvas.height = 800; // الأبعاد الثابتة والمحددة للصورة في موقعك
+    
+    let combinedText = '';
+    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
+
+    let fontSize = 26; // حجم خط بدائي مناسب
+    let lines = [];
+    const maxWidth = 500; // عرض مساحة النص المسموح داخل الصورة
+    const maxHeight = 600; // طول مساحة النص المسموح داخل الصورة قبل الخروج من الإطار
+
+    // حلقة تكرارية تفحص المساحة المطلوبة للنص وتصغر الخط تلقائياً حتى يرتسم النص بالكامل داخل أبعاد الصورة
+    while (fontSize > 10) {
+        ctx.font = `${fontSize}px sans-serif`;
+        lines = [];
+        let words = combinedText.split(' ');
+        let currentLine = '';
+
+        for (let n = 0; n < words.length; n++) {
+            let testLine = currentLine + words[n] + ' ';
+            let metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+                lines.push(currentLine);
+                currentLine = words[n] + ' ';
+            } else {
+                currentLine = testLine;
+            }
+        }
+        lines.push(currentLine);
+
+        // حساب المساحة الطولية المطلوبة لرسم هذه الخطوط مع الفراغات
+        let totalTextHeight = lines.length * (fontSize + 12);
+        if (totalTextHeight <= maxHeight) {
+            break; // ممتاز، النص مناسب جداً للمقاسات الحالية ولن يخرج عن الإطار
+        }
+        fontSize -= 1; // النص أكبر من الصورة، نقوم بتصغير الخط درجة واحدة وإعادة الفحص
+    }
+
+    // الآن نبدأ رسم عناصر الخلفية والنص النهائي الآمن
     ctx.fillStyle = '#1a5235'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#ffb300'; ctx.lineWidth = 6; ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
     
     ctx.fillStyle = '#ffffff'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(`سورة ${surahName}`, canvas.width / 2, 80);
     
-    let combinedText = '';
-    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
-    
-    // ميزة ذكية: ضبط حجم الخط بناءً على طول النص الإجمالي لمنع الخروج عن الإطار
-    let fontSize = 22;
-    if (combinedText.length > 300) fontSize = 18;
-    if (combinedText.length > 500) fontSize = 15;
-    
+    // رسم السطور المفلترة والمقاسة بدقة داخل الصورة
     ctx.font = `${fontSize}px sans-serif`;
-    let currentY = 160; 
-    let line = '';
-    let words = combinedText.split(' ');
-    
-    for (let n = 0; n < words.length; n++) {
-        let testLine = line + words[n] + ' ';
-        let metrics = ctx.measureText(testLine);
-        if (metrics.width > 500 && n > 0) {
-            ctx.fillText(line, canvas.width / 2, currentY);
-            line = words[n] + ' '; 
-            currentY += (fontSize + 15); // مسافة ديناميكية متوافقة مع حجم الخط
-        } else { line = testLine; }
-    }
-    ctx.fillText(line, canvas.width / 2, currentY);
+    let currentY = 160;
+    lines.forEach(line => {
+        ctx.fillText(line, canvas.width / 2, currentY);
+        currentY += (fontSize + 12);
+    });
 
     canvas.toBlob((blob) => {
         const file = new File([blob], 'quran_ayah.png', { type: 'image/png' });
