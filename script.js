@@ -72,7 +72,6 @@ function validateAyahRange() {
     if (toVal > maxAyahs) toVal = maxAyahs;
     if (fromVal > toVal) fromVal = toVal;
 
-    // حد أمان مرن لحماية أبعاد الصورة
     if (toVal - fromVal >= 15) {
         toVal = fromVal + 14;
     }
@@ -140,7 +139,6 @@ function togglePlay() {
 function increment() { let c = document.getElementById('count'); c.innerText = parseInt(c.innerText) + 1; }
 function resetCounter() { document.getElementById('count').innerText = 0; }
 
-// دالة التحكم بأنواع المشاركة مع إخفاء القارئ تماماً عند اختيار نص أو صورة
 function setShareType(type) {
     selectedShareType = type;
     document.getElementById('typeVoice').classList.remove('active');
@@ -151,18 +149,16 @@ function setShareType(type) {
     if (type === 'image') document.getElementById('typeImage').classList.add('active');
     if (type === 'text') document.getElementById('typeText').classList.add('active');
 
-    // إخفاء صندوق القارئ تماماً عند اختيار نص أو صورة من الواجهة
     if (type === 'image' || type === 'text') {
         reciterWrapper.style.display = 'none'; 
         creditText.style.display = 'none';
     } else {
-        // يظهر فقط في حالة المشاركة الصوتية
         reciterWrapper.style.display = 'block';
         creditText.style.display = 'none';
     }
 }
 
-// دالة إرسال المشاركة المحدثة لتنظيف اسم القارئ من النصوص والصور
+// دالة إرسال المشاركة المحدثة لتحميل ملف الصوت الفعلي وإرساله كملف ميديا
 async function executeShare() {
     if (!selectedShareType) { alert('الرجاء اختيار نوع المشاركة'); return; }
     
@@ -183,11 +179,34 @@ async function executeShare() {
     const surahName = quranSurahsData[surahIndex].name;
     const reciterName = modalReciterSelect.options[modalReciterSelect.selectedIndex].text;
     
-    // 1. حالة المشاركة الصوتية (صوت) -> يظهر اسم القارئ والرابط الصوتي بشكل طبيعي
+    // 1. حالة المشاركة الصوتية -> جلب ملف الـ mp3 الفعلي ومشاركته كملف ميديا
     if (selectedShareType === 'voice') {
         const audioUrl = modalReciterSelect.value + surahNum.toString().padStart(3, '0') + ".mp3";
-        let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
-        sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
+        
+        try {
+            // جلب ملف الصوت من الخادم لتحويله إلى كائن Blob
+            const response = await fetch(audioUrl);
+            const blob = await response.blob();
+            // إنشاء ملف mp3 حقيقي
+            const file = new File([blob], `${surahName}_${reciterName}.mp3`, { type: 'audio/mp3' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `سورة ${surahName}`,
+                    text: `🎙️ تلاوة مباركة لسورة ${surahName} بصوت الشيخ ${reciterName}`
+                });
+                closeShareModal();
+            } else {
+                // حل بديل إذا كان المتصفح لا يدعم مشاركة الملفات الصوتية مباشرة
+                let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
+                sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
+            }
+        } catch (error) {
+            alert('حدث خطأ أثناء إعداد ملف الصوت للمشاركة، سيتم مشاركة الرابط كبديل.');
+            let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
+            sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
+        }
         return;
     }
 
@@ -199,21 +218,18 @@ async function executeShare() {
             const toAyah = parseInt(toAyahInput.value);
             const selectedTextAyahs = data.data.ayahs.slice(fromAyah - 1, toAyah);
 
-            // 2. حالة المشاركة النصية (📝 نص / كتابة) -> تم إزالة اسم القارئ تماماً هنا
             if (selectedShareType === 'text') {
                 let textToShare = `📖 سورة ${surahName} (الآيات من ${fromAyah} إلى ${toAyah})\n\n`;
                 selectedTextAyahs.forEach(a => { textToShare += `${a.text} ﴿${a.numberInSurah}﴾ `; });
                 textToShare += `\n\nتم استخدام موقع https://n9.cl/g0h73t`; 
                 sendToShareApi({ title: 'مشاركة آيات قرآنية', text: textToShare });
             } 
-            // 3. حالة المشاركة كصورة (🖼️ صورة)
             else if (selectedShareType === 'image') {
                 generateAndShareImage(surahName, selectedTextAyahs);
             }
         }).catch(() => alert('حدث خطأ، تأكد من اتصال الإنترنت.'));
 }
 
-// دالة توليد الصورة المتجاوبة والذكية
 function generateAndShareImage(surahName, ayahs) {
     const canvas = document.getElementById('shareCanvas');
     const ctx = canvas.getContext('2d');
@@ -222,7 +238,7 @@ function generateAndShareImage(surahName, ayahs) {
     canvas.height = 800; 
     
     let combinedText = '';
-    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
+    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah} Bled﴾ `; });
 
     let fontSize = 26; 
     let lines = [];
@@ -267,7 +283,6 @@ function generateAndShareImage(surahName, ayahs) {
         currentY += (fontSize + 12);
     });
 
-    // نص الحقوق النظيف أسفل الصورة بدون أسماء قراء
     ctx.fillStyle = '#ffb300';
     ctx.font = '20px sans-serif';
     ctx.fillText('تم استخدام موقع https://n9.cl/g0h73t', canvas.width / 2, 750);
