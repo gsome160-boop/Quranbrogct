@@ -1,92 +1,263 @@
-body {
-    background-color: #f4f7f6;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #2c3e50;
-    padding: 20px;
+* {
+    box-sizing: border-box;
     margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.container {
-    max-width: 900px;
-    margin: 30px auto;
-    text-align: center;
-    background: #ffffff;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-h1 {
-    color: #16a085;
-    margin-bottom: 30px;
-    font-size: 32px;
-}
-
-.controls {
+body {
+    background-color: #121212;
+    color: #ffffff;
+    min-height: 100vh;
     display: flex;
-    justify-content: space-around;
-    flex-wrap: wrap;
-    margin-bottom: 25px;
-    background: #edf2f1;
-    padding: 15px;
-    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+.intro-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #1a5235;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 1s ease;
+}
+
+.intro-content {
+    text-align: center;
+}
+.intro-content h1 { font-size: 3rem; color: #ffb300; margin-bottom: 10px; }
+.intro-content p { font-size: 1.2rem; color: #fff; }
+
+.app-container {
+    width: 90%;
+    max-width: 1000px;
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 20px;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.controls-section {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .control-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    width: 45%;
-    min-width: 250px;
+    gap: 5px;
 }
 
-label {
-    font-weight: bold;
-    margin-bottom: 8px;
-    color: #34495e;
-}
-
-select {
+label { font-size: 0.9rem; color: #b3b3b3; }
+select, input {
+    width: 100%;
     padding: 10px;
-    font-size: 16px;
+    background-color: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #fff;
     border-radius: 6px;
-    border: 1px solid #bdc3c7;
-    width: 100%;
+    outline: none;
+}
+
+.audio-controls, .tasbih-counter {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+button {
+    flex: 1;
+    padding: 12px;
+    background-color: #1a5235;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
-    background: white;
+    font-weight: bold;
+    transition: background 0.2s;
 }
 
-.audio-player {
-    margin-bottom: 30px;
+button:hover { background-color: #237249; }
+
+.tasbih-counter {
+    border-top: 1px solid #3a3a3a;
+    padding-top: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.tasbih-counter p { width: 100%; margin-bottom: 8px; font-size: 1.1rem; color: #ffb300;}
+
+.display-section {
+    background-color: #1e1e1e;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #2a2a2a;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
-audio {
-    width: 100%;
-    max-width: 500px;
-}
-
-.quran-text {
-    font-size: 28px;
-    line-height: 2.3;
+.surah-text-container {
+    font-size: 1.6rem;
+    line-height: 2.8rem;
     text-align: justify;
     direction: rtl;
-    padding: 25px;
-    border-top: 3px solid #16a085;
-    background-color: #fffdf9;
-    border-radius: 0 0 12px 12px;
 }
 
-.ayah-number {
-    color: #27ae60;
-    font-weight: bold;
-    margin: 0 6px;
-    font-size: 24px;
+/* ستايل الآيات القابلة للضغط المطول */
+.ayah-span {
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline;
 }
 
-.meta-info {
-    font-size: 16px;
-    color: #7f8c8d;
-    margin-bottom: 15px;
+.ayah-span:hover {
+    background-color: rgba(26, 82, 53, 0.4);
+    color: #ffb300;
+}
+
+/* القائمة المخصصة للضغط المطول */
+.custom-context-menu {
+    position: absolute;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: none;
+    z-index: 10000;
+    min-width: 140px;
+    overflow: hidden;
+}
+
+.context-item {
+    padding: 12px 16px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
     text-align: right;
-    font-style: italic;
+    transition: background 0.2s;
+}
+
+.context-item:hover {
+    background-color: #1a5235;
+    color: #ffb300;
+}
+
+/* ستايلات النوافذ المنبثقة (Modals) */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-box {
+    background-color: #1e1e1e;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    border: 1px solid #3a3a3a;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px; left: 15px;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: #b3b3b3;
+}
+.close-btn:hover { color: #fff; }
+
+.share-tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.share-tabs button {
+    background-color: #2a2a2a;
+    border: 1px solid #3a3a3a;
+}
+
+.share-tabs button.active {
+    background-color: #1a5235;
+    border-color: #ffb300;
+}
+
+.modal-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.input-row label { width: 80px; }
+
+.main-share-btn {
+    width: 100%;
+    margin-top: 20px;
+    background-color: #ffb300;
+    color: #000;
+}
+.main-share-btn:hover { background-color: #ffa000; }
+
+.credit-note {
+    font-size: 0.8rem;
+    color: #777;
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* تنسيقات نافذة التفسير الميسر */
+.tafsir-scroll-box {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-top: 15px;
+    padding-left: 5px;
+}
+
+.tafsir-original-ayah {
+    font-size: 1.3rem;
+    line-height: 2.2rem;
+    color: #ffb300;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.tafsir-body {
+    font-size: 1.1rem;
+    line-height: 1.9rem;
+    color: #e0e0e0;
+    text-align: justify;
+    margin-top: 12px;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: #3a3a3a;
 }
