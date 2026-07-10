@@ -158,7 +158,6 @@ function setShareType(type) {
     }
 }
 
-// دالة إرسال المشاركة المحدثة لتحميل ملف الصوت الفعلي وإرساله كملف ميديا
 async function executeShare() {
     if (!selectedShareType) { alert('الرجاء اختيار نوع المشاركة'); return; }
     
@@ -179,15 +178,12 @@ async function executeShare() {
     const surahName = quranSurahsData[surahIndex].name;
     const reciterName = modalReciterSelect.options[modalReciterSelect.selectedIndex].text;
     
-    // 1. حالة المشاركة الصوتية -> جلب ملف الـ mp3 الفعلي ومشاركته كملف ميديا
     if (selectedShareType === 'voice') {
         const audioUrl = modalReciterSelect.value + surahNum.toString().padStart(3, '0') + ".mp3";
         
         try {
-            // جلب ملف الصوت من الخادم لتحويله إلى كائن Blob
             const response = await fetch(audioUrl);
             const blob = await response.blob();
-            // إنشاء ملف mp3 حقيقي
             const file = new File([blob], `${surahName}_${reciterName}.mp3`, { type: 'audio/mp3' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -198,7 +194,6 @@ async function executeShare() {
                 });
                 closeShareModal();
             } else {
-                // حل بديل إذا كان المتصفح لا يدعم مشاركة الملفات الصوتية مباشرة
                 let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
                 sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
             }
@@ -210,7 +205,6 @@ async function executeShare() {
         return;
     }
 
-    // جلب نص الآيات للحالات الأخرى (نص أو صورة)
     fetch(`https://api.alquran.cloud/v1/surah/${surahNum}/quran-uthmani`)
         .then(res => res.json())
         .then(data => {
@@ -238,7 +232,8 @@ function generateAndShareImage(surahName, ayahs) {
     canvas.height = 800; 
     
     let combinedText = '';
-    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah} Bled﴾ `; });
+    // تم إصلاح السطر بالأسفل وحذف النص الزائد لتظهر الأرقام نقية
+    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
 
     let fontSize = 26; 
     let lines = [];
