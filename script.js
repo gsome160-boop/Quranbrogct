@@ -11,9 +11,19 @@ const toAyahInput = document.getElementById('toAyahInput');
 const creditText = document.getElementById('creditText');
 const reciterWrapper = document.getElementById('reciterWrapper');
 const modalReciterSelect = document.getElementById('modalReciterSelect');
-let selectedShareType = ''; 
 
-// مصفوفة السور للحفاظ على دقة وسلامة عدد آيات كل سورة
+// عناصر نافذة التفسير والقائمة المخصصة
+const customContextMenu = document.getElementById('customContextMenu');
+const contextTafsirBtn = document.getElementById('contextTafsirBtn');
+const tafsirModal = document.getElementById('tafsirModal');
+const tafsirTitle = document.getElementById('tafsirTitle');
+const tafsirAyahText = document.getElementById('tafsirAyahText');
+const tafsirContentText = document.getElementById('tafsirContentText');
+
+let selectedShareType = ''; 
+let currentSelectedAyahData = null; // لحفظ بيانات الآية النشطة عند الضغط المطول
+let touchTimeout = null; // لمراقبة اللمس المطول على الجوال
+
 const quranSurahsData = [
     { name: "الفاتحة", ayahs: 7 }, { name: "البقرة", ayahs: 286 }, { name: "آل عمران", ayahs: 200 }, { name: "النساء", ayahs: 176 }, { name: "المائدة", ayahs: 120 },
     { name: "الأنعام", ayahs: 165 }, { name: "الأعراف", ayahs: 206 }, { name: "الأنفال", ayahs: 75 }, { name: "التوبة", ayahs: 129 }, { name: "يونس", ayahs: 109 },
@@ -94,6 +104,32 @@ function openShareModal() {
 
 function closeShareModal() { shareModal.style.display = 'none'; }
 
+// دوال إدارة نافذة التفسير
+function openTafsirModal() { tafsirModal.style.display = 'flex'; }
+function closeTafsirModal() { tafsirModal.style.display = 'none'; }
+
+// جلب التفسير للآية وعرضه
+function fetchAndShowTafsir(surahNum, ayahNum, originalText, surahName) {
+    tafsirTitle.innerText = `تفسير سورة ${surahName} - الآية ${ayahNum}`;
+    tafsirAyahText.innerText = `﴿ ${originalText} ﴾`;
+    tafsirContentText.innerText = "جاري تحميل التفسير الميسر...";
+    openTafsirModal();
+
+    // جلب التفسير الميسر (ar.jalalayn أو ar.muyassar) من الـ API المعتمد
+    fetch(`https://api.alquran.cloud/v1/ayah/${surahNum}:${ayahNum}/ar.muyassar`)
+        .then(res => res.json())
+        .then(data => {
+            if(data && data.data) {
+                tafsirContentText.innerText = data.data.text;
+            } else {
+                tafsirContentText.innerText = "تعذر تحميل التفسير، تأكد من صحة البيانات.";
+            }
+        }).catch(() => {
+            tafsirContentText.innerText = "حدث خطأ أثناء الاتصال بالخادم لجلب التفسير.";
+        });
+}
+
+// دالة بناء نص السورة مضافاً إليها أحداث الضغط المطول والنقر المزدوج لجميع الأجهزة
 function fetchAndDisplaySurahText(surahIndex) {
     const surahNumber = parseInt(surahIndex);
     if (!surahNumber) return;
@@ -102,23 +138,86 @@ function fetchAndDisplaySurahText(surahIndex) {
         .then(response => response.json())
         .then(data => {
             display.innerHTML = '';
+            const currentSurahName = data.data.name;
+
             if (surahNumber !== 1 && surahNumber !== 9) {
                 const bismillahDiv = document.createElement('div');
                 bismillahDiv.style.textAlign = 'center'; bismillahDiv.style.fontWeight = 'bold'; bismillahDiv.style.marginBottom = '10px';
                 bismillahDiv.textContent = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
                 display.appendChild(bismillahDiv);
             }
+
             data.data.ayahs.forEach(ayah => {
                 let text = ayah.text;
                 if (surahNumber !== 1 && surahNumber !== 9 && ayah.numberInSurah === 1) {
                     text = text.replace('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', '');
                 }
+                
                 const ayahSpan = document.createElement('span');
+                ayahSpan.className = 'ayah-span';
                 ayahSpan.textContent = text + ` ﴿${ayah.numberInSurah}﴾ `;
+                
+                // حفظ البيانات بداخل العنصر لسهولة استرجاعها عند الطلب
+                const ayahData = {
+                    surahNum: surahNumber,
+                    ayahNum: ayah.numberInSurah,
+                    text: text,
+                    surahName: currentSurahName
+                };
+
+                // 1. التعامل مع أجهزة الكمبيوتر (الزر الأيمن للفأرة)
+                ayahSpan.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    showMenu(e.pageX, e.pageY, ayahData);
+                });
+
+                // 2. التعامل مع الشاشات اللمسية والجوالات (اللمس المطول)
+                ayahSpan.addEventListener('touchstart', function(e) {
+                    touchTimeout = setTimeout(() => {
+                        e.preventDefault();
+                        // أخذ إحداثيات اللمسة الأولى
+                        const touch = e.touches[0];
+                        showMenu(touch.pageX, touch.pageY, ayahData);
+                    }, 600); // 600 ميلي ثانية تعبر عن الضغط المطول
+                }, { passive: true });
+
+                ayahSpan.addEventListener('touchend', function() {
+                    clearTimeout(touchTimeout);
+                });
+
+                ayahSpan.addEventListener('touchmove', function() {
+                    clearTimeout(touchTimeout); // إلغاء التفعيل في حال قام المستخدم بالتمرير (السكروول)
+                });
+
                 display.appendChild(ayahSpan);
             });
         }).catch(() => { display.innerText = 'حدث خطأ أثناء تحميل نص السورة.'; });
 }
+
+// دالة إظهار القائمة المخصصة في مكان الضغط
+function showMenu(x, y, data) {
+    currentSelectedAyahData = data;
+    customContextMenu.style.left = `${x}px`;
+    customContextMenu.style.top = `${y}px`;
+    customContextMenu.style.display = 'block';
+}
+
+// إغلاق القائمة عند النقر في أي مكان آخر
+document.addEventListener('click', function() {
+    customContextMenu.style.display = 'none';
+});
+
+// تفعيل زر التفسير من القائمة المنبثقة
+contextTafsirBtn.addEventListener('click', function() {
+    if(currentSelectedAyahData) {
+        fetchAndShowTafsir(
+            currentSelectedAyahData.surahNum,
+            currentSelectedAyahData.ayahNum,
+            currentSelectedAyahData.text,
+            currentSelectedAyahData.surahName
+        );
+    }
+});
 
 function setAudioSource() {
     audioPlayer.pause();
@@ -232,7 +331,6 @@ function generateAndShareImage(surahName, ayahs) {
     canvas.height = 800; 
     
     let combinedText = '';
-    // تم إصلاح السطر بالأسفل وحذف النص الزائد لتظهر الأرقام نقية
     ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
 
     let fontSize = 26; 
