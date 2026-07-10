@@ -117,7 +117,6 @@ button:hover { background-color: #237249; }
     direction: rtl;
 }
 
-/* ستايل الآيات القابلة للضغط المطول */
 .ayah-span {
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
@@ -131,7 +130,6 @@ button:hover { background-color: #237249; }
     color: #ffb300;
 }
 
-/* القائمة المخصصة للضغط المطول */
 .custom-context-menu {
     position: absolute;
     background-color: #2a2a2a;
@@ -158,7 +156,6 @@ button:hover { background-color: #237249; }
     color: #ffb300;
 }
 
-/* ستايلات النوافذ المنبثقة (Modals) */
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -226,13 +223,13 @@ button:hover { background-color: #237249; }
 .main-share-btn:hover { background-color: #ffa000; }
 
 .credit-note {
-    font-size: 0.8rem;
-    color: #777;
+    font-size: 0.9rem;
+    color: #ffb300;
     text-align: center;
-    margin-top: 10px;
+    margin-top: 15px;
+    font-weight: bold;
 }
 
-/* تنسيقات نافذة التفسير الميسر */
 .tafsir-scroll-box {
     max-height: 350px;
     overflow-y: auto;
