@@ -11,18 +11,9 @@ const toAyahInput = document.getElementById('toAyahInput');
 const creditText = document.getElementById('creditText');
 const reciterWrapper = document.getElementById('reciterWrapper');
 const modalReciterSelect = document.getElementById('modalReciterSelect');
-
-const customContextMenu = document.getElementById('customContextMenu');
-const contextTafsirBtn = document.getElementById('contextTafsirBtn');
-const tafsirModal = document.getElementById('tafsirModal');
-const tafsirTitle = document.getElementById('tafsirTitle');
-const tafsirAyahText = document.getElementById('tafsirAyahText');
-const tafsirContentText = document.getElementById('tafsirContentText');
-
 let selectedShareType = ''; 
-let currentSelectedAyahData = null; 
-let touchTimeout = null; 
 
+// مصفوفة السور للحفاظ على دقة وسلامة عدد آيات كل سورة
 const quranSurahsData = [
     { name: "الفاتحة", ayahs: 7 }, { name: "البقرة", ayahs: 286 }, { name: "آل عمران", ayahs: 200 }, { name: "النساء", ayahs: 176 }, { name: "المائدة", ayahs: 120 },
     { name: "الأنعام", ayahs: 165 }, { name: "الأعراف", ayahs: 206 }, { name: "الأنفال", ayahs: 75 }, { name: "التوبة", ayahs: 129 }, { name: "يونس", ayahs: 109 },
@@ -102,27 +93,6 @@ function openShareModal() {
 }
 
 function closeShareModal() { shareModal.style.display = 'none'; }
-function openTafsirModal() { tafsirModal.style.display = 'flex'; }
-function closeTafsirModal() { tafsirModal.style.display = 'none'; }
-
-function fetchAndShowTafsir(surahNum, ayahNum, originalText, surahName) {
-    tafsirTitle.innerText = `تفسير سورة ${surahName} - الآية ${ayahNum}`;
-    tafsirAyahText.innerText = `﴿ ${originalText} ﴾`;
-    tafsirContentText.innerText = "جاري تحميل التفسير الميسر...";
-    openTafsirModal();
-
-    fetch(`https://api.alquran.cloud/v1/ayah/${surahNum}:${ayahNum}/ar.muyassar`)
-        .then(res => res.json())
-        .then(data => {
-            if(data && data.data) {
-                tafsirContentText.innerText = data.data.text;
-            } else {
-                tafsirContentText.innerText = "تعذر تحميل التفسير، تأكد من صحة البيانات.";
-            }
-        }).catch(() => {
-            tafsirContentText.innerText = "حدث خطأ أثناء الاتصال بالخادم لجلب التفسير.";
-        });
-}
 
 function fetchAndDisplaySurahText(surahIndex) {
     const surahNumber = parseInt(surahIndex);
@@ -132,79 +102,23 @@ function fetchAndDisplaySurahText(surahIndex) {
         .then(response => response.json())
         .then(data => {
             display.innerHTML = '';
-            const currentSurahName = data.data.name;
-
             if (surahNumber !== 1 && surahNumber !== 9) {
                 const bismillahDiv = document.createElement('div');
                 bismillahDiv.style.textAlign = 'center'; bismillahDiv.style.fontWeight = 'bold'; bismillahDiv.style.marginBottom = '10px';
                 bismillahDiv.textContent = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
                 display.appendChild(bismillahDiv);
             }
-
             data.data.ayahs.forEach(ayah => {
                 let text = ayah.text;
                 if (surahNumber !== 1 && surahNumber !== 9 && ayah.numberInSurah === 1) {
                     text = text.replace('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', '');
                 }
-                
                 const ayahSpan = document.createElement('span');
-                ayahSpan.className = 'ayah-span';
                 ayahSpan.textContent = text + ` ﴿${ayah.numberInSurah}﴾ `;
-                
-                const ayahData = {
-                    surahNum: surahNumber,
-                    ayahNum: ayah.numberInSurah,
-                    text: text,
-                    surahName: currentSurahName
-                };
-
-                ayahSpan.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                    showMenu(e.pageX, e.pageY, ayahData);
-                });
-
-                ayahSpan.addEventListener('touchstart', function(e) {
-                    touchTimeout = setTimeout(() => {
-                        e.preventDefault();
-                        const touch = e.touches[0];
-                        showMenu(touch.pageX, touch.pageY, ayahData);
-                    }, 600); 
-                }, { passive: true });
-
-                ayahSpan.addEventListener('touchend', function() {
-                    clearTimeout(touchTimeout);
-                });
-
-                ayahSpan.addEventListener('touchmove', function() {
-                    clearTimeout(touchTimeout); 
-                });
-
                 display.appendChild(ayahSpan);
             });
         }).catch(() => { display.innerText = 'حدث خطأ أثناء تحميل نص السورة.'; });
 }
-
-function showMenu(x, y, data) {
-    currentSelectedAyahData = data;
-    customContextMenu.style.left = `${x}px`;
-    customContextMenu.style.top = `${y}px`;
-    customContextMenu.style.display = 'block';
-}
-
-document.addEventListener('click', function() {
-    customContextMenu.style.display = 'none';
-});
-
-contextTafsirBtn.addEventListener('click', function() {
-    if(currentSelectedAyahData) {
-        fetchAndShowTafsir(
-            currentSelectedAyahData.surahNum,
-            currentSelectedAyahData.ayahNum,
-            currentSelectedAyahData.text,
-            currentSelectedAyahData.surahName
-        );
-    }
-});
 
 function setAudioSource() {
     audioPlayer.pause();
@@ -240,7 +154,7 @@ function setShareType(type) {
         creditText.style.display = 'none';
     } else {
         reciterWrapper.style.display = 'block';
-        creditText.style.display = 'block'; // تفعيل ظهور الجملة عند مشاركة ملف الصوت
+        creditText.style.display = 'none';
     }
 }
 
@@ -276,15 +190,16 @@ async function executeShare() {
                 await navigator.share({
                     files: [file],
                     title: `سورة ${surahName}`,
-                    text: `🎙️ بصوت الشيخ ${reciterName}\nخيركم من تعلم القران و علمه برمجة ابوالقاسم`
+                    text: `🎙️ تلاوة مباركة لسورة ${surahName} بصوت الشيخ ${reciterName}`
                 });
                 closeShareModal();
             } else {
-                let voiceText = `🎙️ بصوت الشيخ ${reciterName}\nخيركم من تعلم القران و علمه برمجة ابوالقاسم\n🔗 الرابط: ${audioUrl}`;
+                let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
                 sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
             }
         } catch (error) {
-            let voiceText = `🎙️ بصوت الشيخ ${reciterName}\nخيركم من تعلم القران و علمه برمجة ابوالقاسم\n🔗 الرابط: ${audioUrl}`;
+            alert('حدث خطأ أثناء إعداد ملف الصوت للمشاركة، سيتم مشاركة الرابط كبديل.');
+            let voiceText = `🎙️ استمع إلى سورة ${surahName} كاملة بصوت الشيخ ${reciterName}:\n🔗 الرابط: ${audioUrl}`;
             sendToShareApi({ title: 'مشاركة صوتية', text: voiceText });
         }
         return;
@@ -298,4 +213,99 @@ async function executeShare() {
             const selectedTextAyahs = data.data.ayahs.slice(fromAyah - 1, toAyah);
 
             if (selectedShareType === 'text') {
-                let
+                let textToShare = `📖 سورة ${surahName} (الآيات من ${fromAyah} إلى ${toAyah})\n\n`;
+                selectedTextAyahs.forEach(a => { textToShare += `${a.text} ﴿${a.numberInSurah}﴾ `; });
+                textToShare += `\n\nتم استخدام موقع https://n9.cl/g0h73t`; 
+                sendToShareApi({ title: 'مشاركة آيات قرآنية', text: textToShare });
+            } 
+            else if (selectedShareType === 'image') {
+                generateAndShareImage(surahName, selectedTextAyahs);
+            }
+        }).catch(() => alert('حدث خطأ، تأكد من اتصال الإنترنت.'));
+}
+
+function generateAndShareImage(surahName, ayahs) {
+    const canvas = document.getElementById('shareCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = 600; 
+    canvas.height = 800; 
+    
+    let combinedText = '';
+    ayahs.forEach(a => { combinedText += `${a.text} ﴿${a.numberInSurah}﴾ `; });
+
+    let fontSize = 26; 
+    let lines = [];
+    const maxWidth = 500; 
+    const maxHeight = 560; 
+
+    while (fontSize > 10) {
+        ctx.font = `${fontSize}px sans-serif`;
+        lines = [];
+        let words = combinedText.split(' ');
+        let currentLine = '';
+
+        for (let n = 0; n < words.length; n++) {
+            let testLine = currentLine + words[n] + ' ';
+            let metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+                lines.push(currentLine);
+                currentLine = words[n] + ' ';
+            } else {
+                currentLine = testLine;
+            }
+        }
+        lines.push(currentLine);
+
+        let totalTextHeight = lines.length * (fontSize + 12);
+        if (totalTextHeight <= maxHeight) {
+            break; 
+        }
+        fontSize -= 1; 
+    }
+
+    ctx.fillStyle = '#1a5235'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#ffb300'; ctx.lineWidth = 6; ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`سورة ${surahName}`, canvas.width / 2, 80);
+    
+    ctx.font = `${fontSize}px sans-serif`;
+    let currentY = 160;
+    lines.forEach(line => {
+        ctx.fillText(line, canvas.width / 2, currentY);
+        currentY += (fontSize + 12);
+    });
+
+    ctx.fillStyle = '#ffb300';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('تم استخدام موقع https://n9.cl/g0h73t', canvas.width / 2, 750);
+
+    canvas.toBlob((blob) => {
+        const file = new File([blob], 'quran_ayah.png', { type: 'image/png' });
+        
+        let captionText = `📖 تفقد آيات سورة ${surahName} المكتوبة والمنسقة عبر تطبيقنا المتميز.\nتم استخدام موقع https://n9.cl/g0h73t`;
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ 
+                files: [file], 
+                title: 'صورة الآيات الكريمة',
+                text: captionText 
+            }).then(() => closeShareModal()).catch(err => console.log(err));
+        } else {
+            alert('اضغط على الصورة مطولاً لحفظها ومشاركتها يدويًا.');
+            window.open(canvas.toDataURL());
+        }
+    });
+}
+
+function sendToShareApi(data) {
+    if (navigator.share) {
+        navigator.share(data).then(() => closeShareModal()).catch(err => console.log(err));
+    } else { alert(data.text); }
+}
+
+setTimeout(() => {
+    const overlay = document.getElementById('intro-overlay');
+    if(overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 1000); }
+}, 3000);
