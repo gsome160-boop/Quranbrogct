@@ -136,8 +136,14 @@ function togglePlay() {
     } else { audioPlayer.pause(); playPauseBtn.innerText = "بدء"; }
 }
 
-function increment() { let c = document.getElementById('count'); c.innerText = parseInt(c.innerText) + 1; }
-function resetCounter() { document.getElementById('count').innerText = 0; }
+function increment() { 
+    let c = document.getElementById('count'); 
+    c.innerText = parseInt(c.innerText) + 1; 
+}
+
+function resetCounter() { 
+    document.getElementById('count').innerText = 0; 
+}
 
 function setShareType(type) {
     selectedShareType = type;
